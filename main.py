@@ -84,29 +84,53 @@ def redeploy_app(target_url="https://containers.back4app.com/apps/8b776070-a50c-
                     browser.close()
                     return False
 
-            # === 4. 查找并点击 Redeploy App 按钮 ===
+            # === 4. 查找并点击 Redeploy App 按钮（加强版） ===
             print("寻找 'Redeploy App' 按钮...")
             deploy_selector = 'button:has-text("Redeploy App")'
+            found = False
 
+            # 尝试主页面
             try:
                 btn = page.locator(deploy_selector)
-                btn.wait_for(state='visible', timeout=30000)
-                print("点击 Redeploy App 按钮...")
+                btn.wait_for(state='visible', timeout=60000)  # 等待最长 60 秒
+                print("点击 Redeploy App 按钮（主页面）...")
                 btn.click()
                 time.sleep(5)
-                print("🎉 Redeploy App 操作完成！")
-                browser.close()
-                return True
-
+                print("🎉 Redeploy App 操作完成（主页面）！")
+                found = True
             except PlaywrightTimeoutError:
+                print("⚠ 未在主页面找到按钮，尝试 iframe...")
+
+            # 尝试 iframe
+            if not found:
+                for frame in page.frames:
+                    try:
+                        btn = frame.locator(deploy_selector)
+                        btn.wait_for(state='visible', timeout=30000)
+                        print("点击 Redeploy App 按钮（iframe 内）...")
+                        btn.click()
+                        time.sleep(5)
+                        print("🎉 Redeploy App 操作完成（iframe 内）！")
+                        found = True
+                        break
+                    except PlaywrightTimeoutError:
+                        continue
+
+            if not found:
                 print("❌ 未找到 'Redeploy App' 按钮")
                 page.screenshot(path="redeploy_button_not_found.png")
                 browser.close()
                 return False
 
+            browser.close()
+            return True
+
         except Exception as e:
             print(f"❌ 执行中出现错误: {e}")
-            page.screenshot(path="general_error.png")
+            try:
+                page.screenshot(path="general_error.png")
+            except:
+                pass
             browser.close()
             return False
 
