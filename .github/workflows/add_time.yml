@@ -1,12 +1,12 @@
-name: 自动 Redeploy Back4App 容器
+name: 自动 Redeploy Back4App App
 
 on:
-  workflow_dispatch: # 手动触发
+  workflow_dispatch:  # 手动触发
   schedule:
-    - cron: "0 4 * * *"  # UTC 4:00 = 北京时间 12:00
+    - cron: '0 4 * * *'  # UTC 每天 4 点运行（可根据需要调整）
 
 jobs:
-  redeploy:
+  redeploy_app:
     runs-on: ubuntu-latest
 
     permissions:
@@ -19,39 +19,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
-      - name: Install Playwright
+      - name: Install Playwright and dependencies
         run: |
           pip install playwright
           playwright install --with-deps chromium
 
-      - name: Run Back4App Redeploy Script
+      - name: Run Redeploy Script
         env:
           BACK4APP_COOKIE: ${{ secrets.BACK4APP_COOKIE }}
           BACK4APP_EMAIL: ${{ secrets.BACK4APP_EMAIL }}
           BACK4APP_PASSWORD: ${{ secrets.BACK4APP_PASSWORD }}
         run: python main.py
 
-      - name: Upload error screenshots
+      - name: Upload error artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: error-screenshots
           path: "*.png"
-
-      - name: Commit time.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          echo "$(date +'%Y-%m-%d %H:%M:%S')" > time.txt
-          git add time.txt
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "更新部署时间: $(date +'%Y-%m-%d %H:%M:%S')"
-            git push origin HEAD:main
