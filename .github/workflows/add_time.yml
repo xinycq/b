@@ -28,7 +28,6 @@ jobs:
 
       - name: Run Back4App Redeploy Script
         env:
-          CF_CLEARANCE: ${{ secrets.CF_CLEARANCE }}
           BACK4APP_COOKIE: ${{ secrets.BACK4APP_COOKIE }}
           BACK4APP_EMAIL: ${{ secrets.BACK4APP_EMAIL }}
           BACK4APP_PASSWORD: ${{ secrets.BACK4APP_PASSWORD }}
