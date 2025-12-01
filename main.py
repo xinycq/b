@@ -135,4 +135,21 @@ def redeploy_app(target_url="https://containers.back4app.com/apps/8b776070-a50c-
             browser.close()
             return True
 
-        exc
+        except Exception as e:
+            print(f"❌ 执行出错: {e}")
+            try:
+                page.screenshot(path="general_error.png")
+            except:
+                pass
+            browser.close()
+            return False
+
+if __name__ == "__main__":
+    print("开始自动 Redeploy App 任务...")
+    success = redeploy_app()
+    if success:
+        print("任务成功完成。")
+        exit(0)
+    else:
+        print("任务失败。")
+        exit(1)
