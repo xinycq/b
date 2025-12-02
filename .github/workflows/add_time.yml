@@ -1,32 +1,77 @@
-name: Auto Redeploy Back4App
+name: Auto Redeploy Back4App (Enhanced)
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 每小时执行一次，你可以自己改
-  workflow_dispatch:      # 手动触发
+    - cron: "0 * * * *"   # 每小时运行，可自行修改
+  workflow_dispatch:
 
 jobs:
-  run:
+  redeploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30   # 防止任务无限卡住
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      # -----------------------------------
+      # Playwright 安装（独立拆分，失败概率更低）
+      # -----------------------------------
+      - name: Install Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install Playwright
-        run: |
-          pip install playwright
-          playwright install chromium
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
 
-      - name: Run Redeploy Script
+      - name: Install Playwright
+        run: pip install playwright
+
+      - name: Install Chromium for Playwright
+        run: playwright install --with-deps chromium
+
+      # -----------------------------------
+      # Retry：尝试 3 次执行 main.py
+      # -----------------------------------
+      - name: Run redeploy script with retry
         env:
           BACK4APP_COOKIE: ${{ secrets.BACK4APP_COOKIE }}
           BACK4APP_EMAIL: ${{ secrets.BACK4APP_EMAIL }}
           BACK4APP_PASSWORD: ${{ secrets.BACK4APP_PASSWORD }}
         run: |
-          python main.py
+          echo "开始执行 main.py（最多重试 3 次）"
+
+          attempts=0
+          max_attempts=3
+
+          until [ $attempts -ge $max_attempts ]
+          do
+            attempts=$((attempts+1))
+            echo "第 $attempts 次尝试运行 main.py ..."
+
+            python main.py && break
+
+            echo "❌ 失败：main.py 第 $attempts 次执行失败"
+            echo "等待 10 秒后重试..."
+            sleep 10
+          done
+
+          if [ $attempts -ge $max_attempts ]
+          then
+            echo "🚨 已达最大重试次数：任务彻底失败"
+            exit 1
+          else
+            echo "🎉 main.py 执行成功！"
+          fi
+
+      # -----------------------------------
+      # 上传错误截图到 Artifacts（便于你查看）
+      # -----------------------------------
+      - name: Upload error screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-images
+          path: |
+            *.png
