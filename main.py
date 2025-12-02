@@ -43,7 +43,7 @@ def redeploy_app(target_url="https://containers.back4app.com/apps/8b776070-a50c-
                     page.context.clear_cookies()
                     b4a_cookie = None
 
-            # === 2. 如果 Cookie 失败或未提供，使用邮箱密码登录 ===
+            # === 2. 邮箱密码登录 ===
             if not b4a_cookie:
                 if not (b4a_email and b4a_password):
                     print("❌ Cookie 无效，且未提供邮箱密码。无法登录。")
@@ -74,7 +74,7 @@ def redeploy_app(target_url="https://containers.back4app.com/apps/8b776070-a50c-
                 else:
                     print("✅ 邮箱密码登录成功！")
 
-            # === 3. 确保进入目标容器页面 ===
+            # === 3. 导航到容器页面 ===
             if page.url != target_url:
                 print(f"导航至容器页面: {target_url}")
                 page.goto(target_url, wait_until="domcontentloaded")
@@ -84,53 +84,64 @@ def redeploy_app(target_url="https://containers.back4app.com/apps/8b776070-a50c-
                     browser.close()
                     return False
 
-            # === 4. 查找并点击 Redeploy App 按钮（加强版） ===
+            # === 4. 强化的 Redeploy App 按钮查找逻辑 ===
             print("寻找 'Redeploy App' 按钮...")
-            deploy_selector = 'button:has-text("Redeploy App")'
-            found = False
 
-            # 尝试主页面
-            try:
-                btn = page.locator(deploy_selector)
-                btn.wait_for(state='visible', timeout=60000)  # 等待最长 60 秒
-                print("点击 Redeploy App 按钮（主页面）...")
-                btn.click()
-                time.sleep(5)
-                print("🎉 Redeploy App 操作完成（主页面）！")
-                found = True
-            except PlaywrightTimeoutError:
-                print("⚠ 未在主页面找到按钮，尝试 iframe...")
+            deploy_selectors = [
+                'button:has-text("Redeploy App")',
+                'button:has-text("Redeploy")',
+                '//button[contains(text(), "Redeploy")]',
+                '//button[contains(text(), "redeploy")]',
+                '//button[contains(., "Redeploy")]',
+                '//button[contains(., "redeploy")]',
+                'text=Redeploy App',
+                'text=Redeploy'
+            ]
 
-            # 尝试 iframe
-            if not found:
-                for frame in page.frames:
-                    try:
-                        btn = frame.locator(deploy_selector)
-                        btn.wait_for(state='visible', timeout=30000)
-                        print("点击 Redeploy App 按钮（iframe 内）...")
-                        btn.click()
-                        time.sleep(5)
-                        print("🎉 Redeploy App 操作完成（iframe 内）！")
-                        found = True
+            btn = None
+
+            for selector in deploy_selectors:
+                try:
+                    locator = page.locator(selector)
+                    locator.wait_for(state='visible', timeout=5000)
+                    btn = locator
+                    print(f"找到按钮：{selector}")
+                    break
+                except:
+                    pass
+
+            if not btn:
+                # 最后手段：扫描所有按钮文本
+                print("未找到按钮，扫描所有 <button>...")
+                buttons = page.locator("button")
+                count = buttons.count()
+                print(f"发现 {count} 个按钮，逐一检查文本...")
+
+                for i in range(count):
+                    text = buttons.nth(i).inner_text().strip().lower()
+                    if "redeploy" in text:
+                        btn = buttons.nth(i)
+                        print(f"通过文本匹配找到按钮：{text}")
                         break
-                    except PlaywrightTimeoutError:
-                        continue
 
-            if not found:
-                print("❌ 未找到 'Redeploy App' 按钮")
+            if not btn:
+                print("❌ 仍然未找到 'Redeploy App' 按钮")
                 page.screenshot(path="redeploy_button_not_found.png")
                 browser.close()
                 return False
 
+            # === 5. 点击按钮 ===
+            print("点击 Redeploy App 按钮...")
+            btn.click()
+            time.sleep(5)
+
+            print("🎉 Redeploy App 操作完成！")
             browser.close()
             return True
 
         except Exception as e:
             print(f"❌ 执行中出现错误: {e}")
-            try:
-                page.screenshot(path="general_error.png")
-            except:
-                pass
+            page.screenshot(path="general_error.png")
             browser.close()
             return False
 
