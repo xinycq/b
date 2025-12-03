@@ -2,7 +2,7 @@ name: Auto Redeploy Back4App (Enhanced)
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 每小时运行，可自行修改
+    - cron: "0 0 * * 1"   # 每小时运行，可自行修改
   workflow_dispatch:
 
 jobs:
